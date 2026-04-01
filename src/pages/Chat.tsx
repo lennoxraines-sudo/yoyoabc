@@ -210,7 +210,7 @@ const Chat = () => {
         {/* User Footer */}
         <div className="p-3 border-t-2 border-border/30 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-online animate-pulse" />
             <span className="text-sm font-bold text-foreground truncate max-w-[100px]">
               {username}
             </span>
@@ -242,8 +242,8 @@ const Chat = () => {
             </div>
           </div>
           <div className="flex items-center gap-4 text-xs uppercase tracking-widest">
-            <span className="flex items-center gap-1.5 text-green-400">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="flex items-center gap-1.5 text-online">
+              <span className="w-2 h-2 rounded-full bg-online animate-pulse" />
               Live
             </span>
             <span className="text-muted-foreground flex items-center gap-1.5">
@@ -326,7 +326,7 @@ const Chat = () => {
         <div className="flex-1 overflow-y-auto p-3 space-y-3">
           {onlineUsers.map((user) => (
             <div key={user.username} className="flex items-start gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-400 mt-1.5 flex-shrink-0" />
+              <div className="w-2 h-2 rounded-full bg-online mt-1.5 flex-shrink-0" />
               <div className="min-w-0">
                 <div
                   className={`text-sm font-bold truncate ${
