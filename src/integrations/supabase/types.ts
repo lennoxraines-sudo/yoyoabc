@@ -14,20 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      channels: {
+        Row: {
+          description: string
+          icon: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          description?: string
+          icon?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          description?: string
+          icon?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
+          channel: string
           content: string
           created_at: string
           id: string
           username: string
         }
         Insert: {
+          channel?: string
           content: string
           created_at?: string
           id?: string
           username: string
         }
         Update: {
+          channel?: string
           content?: string
           created_at?: string
           id?: string
