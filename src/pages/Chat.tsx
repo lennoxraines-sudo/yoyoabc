@@ -1,31 +1,20 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-
-type Message = {
-  id: string;
-  username: string;
-  content: string;
-  channel: string;
-  created_at: string;
-};
-
-type Channel = {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  sort_order: number;
-};
+import { Message, DirectMessage, Channel, OnlineUser, ChatView } from "@/components/chat/types";
+import ChannelSidebar from "@/components/chat/ChannelSidebar";
+import OnlineUsersSidebar from "@/components/chat/OnlineUsersSidebar";
+import ChatArea from "@/components/chat/ChatArea";
 
 const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [directMessages, setDirectMessages] = useState<DirectMessage[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
-  const [activeChannel, setActiveChannel] = useState("chilling");
+  const [chatView, setChatView] = useState<ChatView>({ type: "channel", name: "chilling" });
   const [input, setInput] = useState("");
   const [username, setUsername] = useState("");
-  const [onlineUsers, setOnlineUsers] = useState<{ username: string; channel: string }[]>([]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+  const [dmUsers, setDmUsers] = useState<string[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,7 +25,6 @@ const Chat = () => {
     }
     setUsername(name);
 
-    // Fetch channels
     supabase
       .from("channels")
       .select("*")
@@ -57,7 +45,7 @@ const Chat = () => {
     presenceChannel
       .on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();
-        const users: { username: string; channel: string }[] = [];
+        const users: OnlineUser[] = [];
         Object.entries(state).forEach(([key, presences]) => {
           if (presences && presences.length > 0) {
             users.push({
@@ -70,29 +58,34 @@ const Chat = () => {
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          await presenceChannel.track({ channel: activeChannel });
+          const channelName = chatView.type === "channel" ? chatView.name : "DM";
+          await presenceChannel.track({ channel: channelName });
         }
       });
 
     return () => {
       supabase.removeChannel(presenceChannel);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username]);
 
-  // Update presence when channel changes
+  // Update presence when view changes
   useEffect(() => {
     if (!username) return;
     const presenceChannel = supabase.channel("online-users");
-    presenceChannel.track({ channel: activeChannel });
-  }, [activeChannel, username]);
+    const channelName = chatView.type === "channel" ? chatView.name : "DM";
+    presenceChannel.track({ channel: channelName });
+  }, [chatView, username]);
 
-  // Fetch messages for active channel
+  // Fetch channel messages
   useEffect(() => {
+    if (chatView.type !== "channel") return;
+
     const fetchMessages = async () => {
       const { data } = await supabase
         .from("messages")
         .select("*")
-        .eq("channel", activeChannel)
+        .eq("channel", chatView.name)
         .order("created_at", { ascending: true })
         .limit(100);
       if (data) setMessages(data);
@@ -100,14 +93,14 @@ const Chat = () => {
     fetchMessages();
 
     const channel = supabase
-      .channel(`messages-${activeChannel}`)
+      .channel(`messages-${chatView.name}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `channel=eq.${activeChannel}`,
+          filter: `channel=eq.${chatView.name}`,
         },
         (payload) => {
           setMessages((prev) => [...prev, payload.new as Message]);
@@ -118,233 +111,151 @@ const Chat = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeChannel]);
+  }, [chatView]);
 
+  // Fetch DMs
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (chatView.type !== "dm" || !username) return;
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+    const otherUser = chatView.username;
 
-    await supabase.from("messages").insert({
-      username,
-      content: input.trim(),
-      channel: activeChannel,
-    });
+    const fetchDMs = async () => {
+      const { data } = await supabase
+        .from("direct_messages")
+        .select("*")
+        .or(
+          `and(sender_username.eq.${username},receiver_username.eq.${otherUser}),and(sender_username.eq.${otherUser},receiver_username.eq.${username})`
+        )
+        .order("created_at", { ascending: true })
+        .limit(100);
+      if (data) setDirectMessages(data);
+    };
+    fetchDMs();
 
-    setInput("");
-  };
+    const channel = supabase
+      .channel(`dm-${[username, otherUser].sort().join("-")}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "direct_messages",
+        },
+        (payload) => {
+          const dm = payload.new as DirectMessage;
+          if (
+            (dm.sender_username === username && dm.receiver_username === otherUser) ||
+            (dm.sender_username === otherUser && dm.receiver_username === username)
+          ) {
+            setDirectMessages((prev) => [...prev, dm]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [chatView, username]);
+
+  // Load DM user list from stored conversations
+  useEffect(() => {
+    if (!username) return;
+
+    const fetchDmUsers = async () => {
+      const { data } = await supabase
+        .from("direct_messages")
+        .select("sender_username, receiver_username")
+        .or(`sender_username.eq.${username},receiver_username.eq.${username}`);
+
+      if (data) {
+        const users = new Set<string>();
+        data.forEach((dm) => {
+          if (dm.sender_username !== username) users.add(dm.sender_username);
+          if (dm.receiver_username !== username) users.add(dm.receiver_username);
+        });
+        setDmUsers(Array.from(users));
+      }
+    };
+    fetchDmUsers();
+  }, [username, chatView]);
+
+  const handleSend = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!input.trim()) return;
+
+      if (chatView.type === "channel") {
+        await supabase.from("messages").insert({
+          username,
+          content: input.trim(),
+          channel: chatView.name,
+        });
+      } else {
+        await supabase.from("direct_messages").insert({
+          sender_username: username,
+          receiver_username: chatView.username,
+          content: input.trim(),
+        });
+      }
+
+      setInput("");
+    },
+    [input, chatView, username]
+  );
 
   const handleExit = () => {
     sessionStorage.removeItem("chat-username");
     navigate("/");
   };
 
-  const formatTime = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
+  const handleSelectChannel = (name: string) => {
+    setChatView({ type: "channel", name });
   };
 
-  const channelOnlineCount = (channelName: string) =>
-    onlineUsers.filter((u) => u.channel === channelName).length;
+  const handleSelectDM = (user: string) => {
+    if (!dmUsers.includes(user)) {
+      setDmUsers((prev) => [...prev, user]);
+    }
+    setChatView({ type: "dm", username: user });
+  };
 
-  const currentChannel = channels.find((c) => c.name === activeChannel);
+  const currentChannel = channels.find(
+    (c) => chatView.type === "channel" && c.name === chatView.name
+  );
 
   return (
     <div className="h-[100dvh] w-full flex bg-background relative overflow-hidden">
       <div className="absolute inset-0 z-0 grid-bg pointer-events-none" />
 
-      {/* Left Sidebar */}
-      <div className="relative z-10 w-52 flex-shrink-0 border-r-4 border-border bg-card flex flex-col">
-        {/* Network Title */}
-        <div className="p-4 border-b-2 border-border/30">
-          <div className="text-xs uppercase tracking-widest text-muted-foreground mb-1">
-            Network
-          </div>
-          <div className="text-sm font-bold text-primary text-glow uppercase">
-            yoyo's network chat
-          </div>
-        </div>
+      <ChannelSidebar
+        channels={channels}
+        chatView={chatView}
+        onlineUsers={onlineUsers}
+        username={username}
+        dmUsers={dmUsers}
+        onSelectChannel={handleSelectChannel}
+        onSelectDM={handleSelectDM}
+        onExit={handleExit}
+      />
 
-        {/* Servers */}
-        <div className="flex-1 overflow-y-auto p-3">
-          <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3 font-bold">
-            Servers
-          </div>
-          <div className="space-y-1">
-            {channels.map((ch) => {
-              const count = channelOnlineCount(ch.name);
-              const isActive = ch.name === activeChannel;
-              return (
-                <button
-                  key={ch.id}
-                  onClick={() => setActiveChannel(ch.name)}
-                  className={`w-full text-left px-3 py-2 flex items-center gap-2 transition-colors text-sm ${
-                    isActive
-                      ? "bg-primary/20 text-primary border-l-2 border-primary"
-                      : "text-foreground/70 hover:text-foreground hover:bg-muted/50"
-                  }`}
-                >
-                  <span className="text-base">{ch.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold truncate">{ch.name}</div>
-                    {count > 0 && (
-                      <div className="text-xs text-primary/70">
-                        {count} online
-                      </div>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      <ChatArea
+        chatView={chatView}
+        messages={messages}
+        directMessages={directMessages}
+        currentChannel={currentChannel}
+        username={username}
+        input={input}
+        onlineUsers={onlineUsers}
+        onInputChange={setInput}
+        onSend={handleSend}
+      />
 
-        {/* User Footer */}
-        <div className="p-3 border-t-2 border-border/30 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-online animate-pulse" />
-            <span className="text-sm font-bold text-foreground truncate max-w-[100px]">
-              {username}
-            </span>
-          </div>
-          <button
-            onClick={handleExit}
-            className="text-xs uppercase tracking-widest text-muted-foreground hover:text-destructive font-bold transition-colors"
-          >
-            Exit
-          </button>
-        </div>
-      </div>
-
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative z-10 min-w-0">
-        {/* Channel Header */}
-        <div className="border-b-4 border-border bg-card p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">
-              {currentChannel?.icon || "💬"}
-            </span>
-            <div>
-              <h1 className="text-xl font-bold uppercase tracking-tight text-primary text-glow">
-                {activeChannel}
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                {currentChannel?.description || ""}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 text-xs uppercase tracking-widest">
-            <span className="flex items-center gap-1.5 text-online">
-              <span className="w-2 h-2 rounded-full bg-online animate-pulse" />
-              Live
-            </span>
-            <span className="text-muted-foreground flex items-center gap-1.5">
-              <span>💬</span>
-              {channelOnlineCount(activeChannel)} in channel
-            </span>
-          </div>
-        </div>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((msg) => (
-            <div key={msg.id} className="flex flex-col items-start">
-              <div className="max-w-[80%]">
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className={`text-xs font-bold uppercase ${
-                      msg.username === username
-                        ? "text-primary"
-                        : "text-secondary"
-                    }`}
-                  >
-                    {msg.username}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatTime(msg.created_at)}
-                  </span>
-                </div>
-                <div className="border-2 border-border bg-card p-3">
-                  <p className="text-foreground text-sm break-words">
-                    {msg.content}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input Bar */}
-        <form
-          onSubmit={handleSend}
-          className="border-t-4 border-border bg-card p-3 flex items-center gap-3"
-        >
-          <button
-            type="button"
-            className="w-10 h-10 border-2 border-border bg-muted/50 flex items-center justify-center text-lg hover:bg-muted transition-colors"
-          >
-            😀
-          </button>
-          <button
-            type="button"
-            className="w-10 h-10 border-2 border-border bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
-          >
-            📎
-          </button>
-          <input
-            className="flex-1 text-sm py-3 px-4 border-2 border-border bg-muted/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-            placeholder={`Transmit to #${activeChannel}...`}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            maxLength={500}
-          />
-          <button
-            type="submit"
-            className="px-6 py-3 border-2 border-border bg-primary text-primary-foreground uppercase font-bold tracking-tight hover:bg-primary/90 transition-all text-sm"
-          >
-            Send
-          </button>
-        </form>
-      </div>
-
-      {/* Right Sidebar - Online Users */}
-      <div className="relative z-10 w-52 flex-shrink-0 border-l-4 border-border bg-card flex flex-col">
-        <div className="p-4 border-b-2 border-border/30">
-          <div className="text-xs uppercase tracking-widest text-muted-foreground font-bold">
-            Online — {onlineUsers.length}
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-3 space-y-3">
-          {onlineUsers.map((user) => (
-            <div key={user.username} className="flex items-start gap-2">
-              <div className="w-2 h-2 rounded-full bg-online mt-1.5 flex-shrink-0" />
-              <div className="min-w-0">
-                <div
-                  className={`text-sm font-bold truncate ${
-                    user.username === username
-                      ? "text-primary"
-                      : "text-foreground"
-                  }`}
-                >
-                  {user.username}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  #{user.channel}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <OnlineUsersSidebar
+        onlineUsers={onlineUsers}
+        username={username}
+        onUserClick={handleSelectDM}
+      />
     </div>
   );
 };
