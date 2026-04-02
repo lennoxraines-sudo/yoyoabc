@@ -13,17 +13,40 @@ const Chat = () => {
   const [chatView, setChatView] = useState<ChatView>({ type: "channel", name: "chilling" });
   const [input, setInput] = useState("");
   const [username, setUsername] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [dmUsers, setDmUsers] = useState<string[]>([]);
   const navigate = useNavigate();
 
+  // Auth check + load profile
   useEffect(() => {
-    const name = sessionStorage.getItem("chat-username");
-    if (!name) {
-      navigate("/");
-      return;
-    }
-    setUsername(name);
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/");
+        return;
+      }
+      setUserId(session.user.id);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", session.user.id)
+        .single();
+
+      if (profile) setUsername(profile.username);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) navigate("/");
+    });
+
+    init();
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!username) return;
 
     supabase
       .from("channels")
@@ -32,7 +55,7 @@ const Chat = () => {
       .then(({ data }) => {
         if (data) setChannels(data);
       });
-  }, [navigate]);
+  }, [username]);
 
   // Presence tracking
   useEffect(() => {
@@ -158,7 +181,7 @@ const Chat = () => {
     };
   }, [chatView, username]);
 
-  // Load DM user list from stored conversations
+  // Load DM user list
   useEffect(() => {
     if (!username) return;
 
@@ -183,29 +206,31 @@ const Chat = () => {
   const handleSend = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!input.trim()) return;
+      if (!input.trim() || !userId) return;
 
       if (chatView.type === "channel") {
         await supabase.from("messages").insert({
           username,
           content: input.trim(),
           channel: chatView.name,
+          user_id: userId,
         });
       } else {
         await supabase.from("direct_messages").insert({
           sender_username: username,
           receiver_username: chatView.username,
           content: input.trim(),
+          user_id: userId,
         });
       }
 
       setInput("");
     },
-    [input, chatView, username]
+    [input, chatView, username, userId]
   );
 
-  const handleExit = () => {
-    sessionStorage.removeItem("chat-username");
+  const handleExit = async () => {
+    await supabase.auth.signOut();
     navigate("/");
   };
 
@@ -223,6 +248,16 @@ const Chat = () => {
   const currentChannel = channels.find(
     (c) => chatView.type === "channel" && c.name === chatView.name
   );
+
+  if (!username) {
+    return (
+      <div className="h-[100dvh] w-full flex items-center justify-center bg-background">
+        <div className="text-primary text-glow uppercase tracking-widest animate-pulse">
+          Loading...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-[100dvh] w-full flex bg-background relative overflow-hidden">

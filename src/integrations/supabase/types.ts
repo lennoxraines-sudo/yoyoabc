@@ -45,6 +45,7 @@ export type Database = {
           id: string
           receiver_username: string
           sender_username: string
+          user_id: string | null
         }
         Insert: {
           content: string
@@ -52,6 +53,7 @@ export type Database = {
           id?: string
           receiver_username: string
           sender_username: string
+          user_id?: string | null
         }
         Update: {
           content?: string
@@ -59,6 +61,7 @@ export type Database = {
           id?: string
           receiver_username?: string
           sender_username?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -68,6 +71,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          user_id: string | null
           username: string
         }
         Insert: {
@@ -75,11 +79,31 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          user_id?: string | null
           username: string
         }
         Update: {
           channel?: string
           content?: string
+          created_at?: string
+          id?: string
+          user_id?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          username: string
+        }
+        Update: {
           created_at?: string
           id?: string
           username?: string
