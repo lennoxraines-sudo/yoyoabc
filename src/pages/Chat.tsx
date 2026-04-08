@@ -18,6 +18,7 @@ const Chat = () => {
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [dmUsers, setDmUsers] = useState<string[]>([]);
   const navigate = useNavigate();
+  const { isAdmin, isBanned, isSilenced, silencedUntil, moderate } = useModeration(userId);
 
   // Auth check + load profile
   useEffect(() => {
