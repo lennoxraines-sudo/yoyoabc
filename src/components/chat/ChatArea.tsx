@@ -47,6 +47,8 @@ const ChatArea = ({
 }: Props) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [moderatingUser, setModeratingUser] = useState<string | null>(null);
+
+  const displayMessages =
     chatView.type === "channel"
       ? messages.map((m) => ({
           id: m.id,
