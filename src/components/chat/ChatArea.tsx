@@ -1,5 +1,6 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Message, DirectMessage, ChatView, Channel, OnlineUser } from "./types";
+import ModerationMenu from "./ModerationMenu";
 
 type Props = {
   chatView: ChatView;
@@ -11,6 +12,11 @@ type Props = {
   onlineUsers: OnlineUser[];
   onInputChange: (val: string) => void;
   onSend: (e: React.FormEvent) => void;
+  isAdmin?: boolean;
+  isBanned?: boolean;
+  isSilenced?: boolean;
+  silencedUntil?: string | null;
+  moderate?: (action: string, opts: any) => Promise<any>;
 };
 
 const formatTime = (dateStr: string) => {
