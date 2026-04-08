@@ -39,10 +39,14 @@ const ChatArea = ({
   onlineUsers,
   onInputChange,
   onSend,
+  isAdmin = false,
+  isBanned = false,
+  isSilenced = false,
+  silencedUntil,
+  moderate,
 }: Props) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const displayMessages =
+  const [moderatingUser, setModeratingUser] = useState<string | null>(null);
     chatView.type === "channel"
       ? messages.map((m) => ({
           id: m.id,
