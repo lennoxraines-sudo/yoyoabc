@@ -1,5 +1,6 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Message, DirectMessage, ChatView, Channel, OnlineUser } from "./types";
+import ModerationMenu from "./ModerationMenu";
 
 type Props = {
   chatView: ChatView;
@@ -11,6 +12,11 @@ type Props = {
   onlineUsers: OnlineUser[];
   onInputChange: (val: string) => void;
   onSend: (e: React.FormEvent) => void;
+  isAdmin?: boolean;
+  isBanned?: boolean;
+  isSilenced?: boolean;
+  silencedUntil?: string | null;
+  moderate?: (action: string, opts: any) => Promise<any>;
 };
 
 const formatTime = (dateStr: string) => {
@@ -33,8 +39,14 @@ const ChatArea = ({
   onlineUsers,
   onInputChange,
   onSend,
+  isAdmin = false,
+  isBanned = false,
+  isSilenced = false,
+  silencedUntil,
+  moderate,
 }: Props) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [moderatingUser, setModeratingUser] = useState<string | null>(null);
 
   const displayMessages =
     chatView.type === "channel"
@@ -103,9 +115,9 @@ const ChatArea = ({
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {displayMessages.map((msg) => (
-          <div key={msg.id} className="flex flex-col items-start">
+          <div key={msg.id} className="flex flex-col items-start group">
             <div className="max-w-[80%]">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 relative">
                 <span
                   className={`text-xs font-bold uppercase ${
                     msg.author === username ? "text-primary" : "text-secondary"
@@ -116,6 +128,23 @@ const ChatArea = ({
                 <span className="text-xs text-muted-foreground">
                   {formatTime(msg.created_at)}
                 </span>
+                {isAdmin && msg.author !== username && (
+                  <button
+                    type="button"
+                    onClick={() => setModeratingUser(moderatingUser === msg.author ? null : msg.author)}
+                    className="opacity-0 group-hover:opacity-100 text-xs text-muted-foreground hover:text-destructive transition-all ml-1"
+                    title="Moderate user"
+                  >
+                    ⚙️
+                  </button>
+                )}
+                {moderatingUser === msg.author && moderate && (
+                  <ModerationMenu
+                    targetUsername={msg.author}
+                    onClose={() => setModeratingUser(null)}
+                    moderate={moderate}
+                  />
+                )}
               </div>
               <div className="border-2 border-border bg-card p-3">
                 <p className="text-foreground text-sm break-words">
@@ -129,36 +158,50 @@ const ChatArea = ({
       </div>
 
       {/* Input */}
-      <form
-        onSubmit={onSend}
-        className="border-t-4 border-border bg-card p-3 flex items-center gap-3"
-      >
-        <button
-          type="button"
-          className="w-10 h-10 border-2 border-border bg-muted/50 flex items-center justify-center text-lg hover:bg-muted transition-colors"
+      {isBanned ? (
+        <div className="border-t-4 border-destructive bg-destructive/10 p-4 text-center">
+          <p className="text-destructive font-bold uppercase text-sm tracking-widest">
+            🚫 You have been banned from this chat
+          </p>
+        </div>
+      ) : isSilenced ? (
+        <div className="border-t-4 border-yellow-500/50 bg-yellow-500/10 p-4 text-center">
+          <p className="text-yellow-400 font-bold uppercase text-sm tracking-widest">
+            🔇 You are silenced until {silencedUntil ? new Date(silencedUntil).toLocaleTimeString() : "soon"}
+          </p>
+        </div>
+      ) : (
+        <form
+          onSubmit={onSend}
+          className="border-t-4 border-border bg-card p-3 flex items-center gap-3"
         >
-          😀
-        </button>
-        <button
-          type="button"
-          className="w-10 h-10 border-2 border-border bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
-        >
-          📎
-        </button>
-        <input
-          className="flex-1 text-sm py-3 px-4 border-2 border-border bg-muted/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-          placeholder={placeholder}
-          value={input}
-          onChange={(e) => onInputChange(e.target.value)}
-          maxLength={500}
-        />
-        <button
-          type="submit"
-          className="px-6 py-3 border-2 border-border bg-primary text-primary-foreground uppercase font-bold tracking-tight hover:bg-primary/90 transition-all text-sm"
-        >
-          Send
-        </button>
-      </form>
+          <button
+            type="button"
+            className="w-10 h-10 border-2 border-border bg-muted/50 flex items-center justify-center text-lg hover:bg-muted transition-colors"
+          >
+            😀
+          </button>
+          <button
+            type="button"
+            className="w-10 h-10 border-2 border-border bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
+          >
+            📎
+          </button>
+          <input
+            className="flex-1 text-sm py-3 px-4 border-2 border-border bg-muted/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+            placeholder={placeholder}
+            value={input}
+            onChange={(e) => onInputChange(e.target.value)}
+            maxLength={500}
+          />
+          <button
+            type="submit"
+            className="px-6 py-3 border-2 border-border bg-primary text-primary-foreground uppercase font-bold tracking-tight hover:bg-primary/90 transition-all text-sm"
+          >
+            Send
+          </button>
+        </form>
+      )}
     </div>
   );
 };

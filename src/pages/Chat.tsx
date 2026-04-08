@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Message, DirectMessage, Channel, OnlineUser, ChatView } from "@/components/chat/types";
+import { useModeration } from "@/hooks/useModeration";
 import ChannelSidebar from "@/components/chat/ChannelSidebar";
 import OnlineUsersSidebar from "@/components/chat/OnlineUsersSidebar";
 import ChatArea from "@/components/chat/ChatArea";
@@ -17,6 +18,7 @@ const Chat = () => {
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [dmUsers, setDmUsers] = useState<string[]>([]);
   const navigate = useNavigate();
+  const { isAdmin, isBanned, isSilenced, silencedUntil, moderate } = useModeration(userId);
 
   // Auth check + load profile
   useEffect(() => {
@@ -206,7 +208,7 @@ const Chat = () => {
   const handleSend = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!input.trim() || !userId) return;
+      if (!input.trim() || !userId || isBanned || isSilenced) return;
 
       if (chatView.type === "channel") {
         await supabase.from("messages").insert({
@@ -284,6 +286,11 @@ const Chat = () => {
         onlineUsers={onlineUsers}
         onInputChange={setInput}
         onSend={handleSend}
+        isAdmin={isAdmin}
+        isBanned={isBanned}
+        isSilenced={isSilenced}
+        silencedUntil={silencedUntil}
+        moderate={moderate}
       />
 
       <OnlineUsersSidebar
