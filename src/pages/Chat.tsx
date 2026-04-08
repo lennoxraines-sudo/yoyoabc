@@ -286,6 +286,11 @@ const Chat = () => {
         onlineUsers={onlineUsers}
         onInputChange={setInput}
         onSend={handleSend}
+        isAdmin={isAdmin}
+        isBanned={isBanned}
+        isSilenced={isSilenced}
+        silencedUntil={silencedUntil}
+        moderate={moderate}
       />
 
       <OnlineUsersSidebar
