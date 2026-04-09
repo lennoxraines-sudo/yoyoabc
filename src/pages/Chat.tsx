@@ -138,7 +138,7 @@ const Chat = () => {
     };
   }, [chatView]);
 
-  // Fetch DMs
+  // Fetch DMs (polling since realtime is disabled for DM privacy)
   useEffect(() => {
     if (chatView.type !== "dm" || !username) return;
 
@@ -157,29 +157,10 @@ const Chat = () => {
     };
     fetchDMs();
 
-    const channel = supabase
-      .channel(`dm-${[username, otherUser].sort().join("-")}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "direct_messages",
-        },
-        (payload) => {
-          const dm = payload.new as DirectMessage;
-          if (
-            (dm.sender_username === username && dm.receiver_username === otherUser) ||
-            (dm.sender_username === otherUser && dm.receiver_username === username)
-          ) {
-            setDirectMessages((prev) => [...prev, dm]);
-          }
-        }
-      )
-      .subscribe();
+    const interval = setInterval(fetchDMs, 3000);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [chatView, username]);
 
