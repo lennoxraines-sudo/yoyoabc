@@ -189,7 +189,9 @@ const Chat = () => {
   const handleSend = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!input.trim() || !userId || isBanned || isSilenced) return;
+      const trimmed = input.trim();
+      if (!trimmed || !userId || isBanned || isSilenced) return;
+      if (trimmed.length > 2000) return;
 
       if (chatView.type === "channel") {
         await supabase.from("messages").insert({
