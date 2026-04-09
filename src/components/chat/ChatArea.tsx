@@ -40,6 +40,7 @@ const ChatArea = ({
   onlineUsers,
   onInputChange,
   onSend,
+  onDeleteMessage,
   isAdmin = false,
   isBanned = false,
   isSilenced = false,
