@@ -192,25 +192,62 @@ const Chat = () => {
       e.preventDefault();
       const trimmed = input.trim();
       if (!trimmed || !userId || isBanned || isSilenced) return;
-      if (trimmed.length > 2000) return;
-
-      if (chatView.type === "channel") {
-        await supabase.from("messages").insert({
-          username,
-          content: trimmed,
-          channel: chatView.name,
-          user_id: userId,
-        });
-      } else {
-        await supabase.from("direct_messages").insert({
-          sender_username: username,
-          receiver_username: chatView.username,
-          content: trimmed,
-          user_id: userId,
-        });
+      if (trimmed.length > 2000) {
+        toast.error("Message is too long");
+        return;
       }
 
-      setInput("");
+      try {
+        if (chatView.type === "channel") {
+          const optimisticMessage: Message = {
+            id: crypto.randomUUID(),
+            username,
+            content: trimmed,
+            channel: chatView.name,
+            created_at: new Date().toISOString(),
+          };
+
+          setMessages((prev) => [...prev, optimisticMessage]);
+
+          const { error } = await supabase.from("messages").insert({
+            username,
+            content: trimmed,
+            channel: chatView.name,
+            user_id: userId,
+          });
+
+          if (error) {
+            setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
+            throw error;
+          }
+        } else {
+          const optimisticMessage: DirectMessage = {
+            id: crypto.randomUUID(),
+            sender_username: username,
+            receiver_username: chatView.username,
+            content: trimmed,
+            created_at: new Date().toISOString(),
+          };
+
+          setDirectMessages((prev) => [...prev, optimisticMessage]);
+
+          const { error } = await supabase.from("direct_messages").insert({
+            sender_username: username,
+            receiver_username: chatView.username,
+            content: trimmed,
+            user_id: userId,
+          });
+
+          if (error) {
+            setDirectMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
+            throw error;
+          }
+        }
+
+        setInput("");
+      } catch (error: any) {
+        toast.error(error.message || "Failed to send message");
+      }
     },
     [input, chatView, username, userId, isBanned, isSilenced]
   );
