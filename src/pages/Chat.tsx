@@ -138,7 +138,7 @@ const Chat = () => {
     };
   }, [chatView]);
 
-  // Fetch DMs
+  // Fetch DMs (polling since realtime is disabled for DM privacy)
   useEffect(() => {
     if (chatView.type !== "dm" || !username) return;
 
@@ -157,29 +157,10 @@ const Chat = () => {
     };
     fetchDMs();
 
-    const channel = supabase
-      .channel(`dm-${[username, otherUser].sort().join("-")}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "direct_messages",
-        },
-        (payload) => {
-          const dm = payload.new as DirectMessage;
-          if (
-            (dm.sender_username === username && dm.receiver_username === otherUser) ||
-            (dm.sender_username === otherUser && dm.receiver_username === username)
-          ) {
-            setDirectMessages((prev) => [...prev, dm]);
-          }
-        }
-      )
-      .subscribe();
+    const interval = setInterval(fetchDMs, 3000);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [chatView, username]);
 
@@ -208,12 +189,14 @@ const Chat = () => {
   const handleSend = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!input.trim() || !userId || isBanned || isSilenced) return;
+      const trimmed = input.trim();
+      if (!trimmed || !userId || isBanned || isSilenced) return;
+      if (trimmed.length > 2000) return;
 
       if (chatView.type === "channel") {
         await supabase.from("messages").insert({
           username,
-          content: input.trim(),
+          content: trimmed,
           channel: chatView.name,
           user_id: userId,
         });
@@ -221,7 +204,7 @@ const Chat = () => {
         await supabase.from("direct_messages").insert({
           sender_username: username,
           receiver_username: chatView.username,
-          content: input.trim(),
+          content: trimmed,
           user_id: userId,
         });
       }
