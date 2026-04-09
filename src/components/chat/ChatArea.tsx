@@ -46,7 +46,7 @@ const ChatArea = ({
   moderate,
 }: Props) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [moderatingUser, setModeratingUser] = useState<string | null>(null);
+  const [moderatingMessageId, setModeratingMessageId] = useState<string | null>(null);
 
   const displayMessages =
     chatView.type === "channel"
