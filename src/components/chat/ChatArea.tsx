@@ -12,6 +12,7 @@ type Props = {
   onlineUsers: OnlineUser[];
   onInputChange: (val: string) => void;
   onSend: (e: React.FormEvent) => void;
+  onDeleteMessage?: (messageId: string) => void;
   isAdmin?: boolean;
   isBanned?: boolean;
   isSilenced?: boolean;
