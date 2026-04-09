@@ -12,6 +12,7 @@ type Props = {
   onlineUsers: OnlineUser[];
   onInputChange: (val: string) => void;
   onSend: (e: React.FormEvent) => void;
+  onDeleteMessage?: (messageId: string) => void;
   isAdmin?: boolean;
   isBanned?: boolean;
   isSilenced?: boolean;
@@ -39,6 +40,7 @@ const ChatArea = ({
   onlineUsers,
   onInputChange,
   onSend,
+  onDeleteMessage,
   isAdmin = false,
   isBanned = false,
   isSilenced = false,
@@ -128,15 +130,27 @@ const ChatArea = ({
                 <span className="text-xs text-muted-foreground">
                   {formatTime(msg.created_at)}
                 </span>
-                {isAdmin && msg.author !== username && (
-                  <button
-                    type="button"
-                    onClick={() => setModeratingMessageId(moderatingMessageId === msg.id ? null : msg.id)}
-                    className="opacity-0 group-hover:opacity-100 text-xs text-muted-foreground hover:text-destructive transition-all ml-1"
-                    title="Moderate user"
-                  >
-                    ⚙️
-                  </button>
+                {isAdmin && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteMessage?.(msg.id)}
+                      className="opacity-0 group-hover:opacity-100 text-xs text-muted-foreground hover:text-destructive transition-all ml-1"
+                      title="Delete message"
+                    >
+                      🗑️
+                    </button>
+                    {msg.author !== username && (
+                      <button
+                        type="button"
+                        onClick={() => setModeratingMessageId(moderatingMessageId === msg.id ? null : msg.id)}
+                        className="opacity-0 group-hover:opacity-100 text-xs text-muted-foreground hover:text-destructive transition-all ml-1"
+                        title="Moderate user"
+                      >
+                        ⚙️
+                      </button>
+                    )}
+                  </>
                 )}
                 {moderatingMessageId === msg.id && moderate && (
                   <ModerationMenu
