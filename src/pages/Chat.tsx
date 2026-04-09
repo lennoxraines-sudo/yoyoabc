@@ -214,6 +214,20 @@ const Chat = () => {
     [input, chatView, username, userId, isBanned, isSilenced]
   );
 
+  const handleDeleteMessage = useCallback(
+    async (messageId: string) => {
+      if (!isAdmin) return;
+      if (chatView.type === "channel") {
+        await supabase.from("messages").delete().eq("id", messageId);
+        setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      } else {
+        await supabase.from("direct_messages").delete().eq("id", messageId);
+        setDirectMessages((prev) => prev.filter((m) => m.id !== messageId));
+      }
+    },
+    [isAdmin, chatView]
+  );
+
   const handleExit = async () => {
     await supabase.auth.signOut();
     navigate("/");
@@ -269,6 +283,7 @@ const Chat = () => {
         onlineUsers={onlineUsers}
         onInputChange={setInput}
         onSend={handleSend}
+        onDeleteMessage={handleDeleteMessage}
         isAdmin={isAdmin}
         isBanned={isBanned}
         isSilenced={isSilenced}
