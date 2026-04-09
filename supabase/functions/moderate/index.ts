@@ -10,13 +10,16 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const respond = (ok: boolean, data: Record<string, unknown>) =>
+    new Response(JSON.stringify({ ok, ...data }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond(false, { error: "Unauthorized" });
     }
 
     const supabaseAdmin = createClient(
@@ -32,10 +35,7 @@ Deno.serve(async (req) => {
 
     const { data: { user } } = await supabaseUser.auth.getUser();
     if (!user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond(false, { error: "Unauthorized" });
     }
 
     // Check admin role using service role client
@@ -47,10 +47,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (!roleData) {
-      return new Response(JSON.stringify({ error: "Forbidden: admin only" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond(false, { error: "Forbidden: admin only" });
     }
 
     const { action, target_username, reason, duration_minutes, ip_address } = await req.json();
@@ -64,10 +61,7 @@ Deno.serve(async (req) => {
         .eq("username", target_username)
         .single();
       if (!profile) {
-        return new Response(JSON.stringify({ error: "User not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return respond(false, { error: "User not found" });
       }
       targetUserId = profile.id;
     }
@@ -133,19 +127,11 @@ Deno.serve(async (req) => {
         break;
       }
       default:
-        return new Response(JSON.stringify({ error: "Invalid action" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return respond(false, { error: "Invalid action" });
     }
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return respond(true, result);
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return respond(false, { error: err.message });
   }
 });

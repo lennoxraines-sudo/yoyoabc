@@ -51,7 +51,9 @@ export const useModeration = (userId: string | null) => {
       });
 
       if (res.error) throw new Error(res.error.message);
-      return res.data;
+      const data = res.data;
+      if (!data?.ok) throw new Error(data?.error || "Action failed");
+      return data;
     },
     []
   );
