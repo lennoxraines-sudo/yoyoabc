@@ -130,15 +130,27 @@ const ChatArea = ({
                 <span className="text-xs text-muted-foreground">
                   {formatTime(msg.created_at)}
                 </span>
-                {isAdmin && msg.author !== username && (
-                  <button
-                    type="button"
-                    onClick={() => setModeratingMessageId(moderatingMessageId === msg.id ? null : msg.id)}
-                    className="opacity-0 group-hover:opacity-100 text-xs text-muted-foreground hover:text-destructive transition-all ml-1"
-                    title="Moderate user"
-                  >
-                    ⚙️
-                  </button>
+                {isAdmin && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteMessage?.(msg.id)}
+                      className="opacity-0 group-hover:opacity-100 text-xs text-muted-foreground hover:text-destructive transition-all ml-1"
+                      title="Delete message"
+                    >
+                      🗑️
+                    </button>
+                    {msg.author !== username && (
+                      <button
+                        type="button"
+                        onClick={() => setModeratingMessageId(moderatingMessageId === msg.id ? null : msg.id)}
+                        className="opacity-0 group-hover:opacity-100 text-xs text-muted-foreground hover:text-destructive transition-all ml-1"
+                        title="Moderate user"
+                      >
+                        ⚙️
+                      </button>
+                    )}
+                  </>
                 )}
                 {moderatingMessageId === msg.id && moderate && (
                   <ModerationMenu
