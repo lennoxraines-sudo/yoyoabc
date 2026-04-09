@@ -46,7 +46,7 @@ const ChatArea = ({
   moderate,
 }: Props) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [moderatingUser, setModeratingUser] = useState<string | null>(null);
+  const [moderatingMessageId, setModeratingMessageId] = useState<string | null>(null);
 
   const displayMessages =
     chatView.type === "channel"
@@ -131,17 +131,17 @@ const ChatArea = ({
                 {isAdmin && msg.author !== username && (
                   <button
                     type="button"
-                    onClick={() => setModeratingUser(moderatingUser === msg.author ? null : msg.author)}
+                    onClick={() => setModeratingMessageId(moderatingMessageId === msg.id ? null : msg.id)}
                     className="opacity-0 group-hover:opacity-100 text-xs text-muted-foreground hover:text-destructive transition-all ml-1"
                     title="Moderate user"
                   >
                     ⚙️
                   </button>
                 )}
-                {moderatingUser === msg.author && moderate && (
+                {moderatingMessageId === msg.id && moderate && (
                   <ModerationMenu
                     targetUsername={msg.author}
-                    onClose={() => setModeratingUser(null)}
+                    onClose={() => setModeratingMessageId(null)}
                     moderate={moderate}
                   />
                 )}
