@@ -196,7 +196,7 @@ const Chat = () => {
       if (chatView.type === "channel") {
         await supabase.from("messages").insert({
           username,
-          content: input.trim(),
+          content: trimmed,
           channel: chatView.name,
           user_id: userId,
         });
@@ -204,7 +204,7 @@ const Chat = () => {
         await supabase.from("direct_messages").insert({
           sender_username: username,
           receiver_username: chatView.username,
-          content: input.trim(),
+          content: trimmed,
           user_id: userId,
         });
       }
