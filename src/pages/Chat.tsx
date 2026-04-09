@@ -228,7 +228,7 @@ const Chat = () => {
 
       setInput("");
     },
-    [input, chatView, username, userId]
+    [input, chatView, username, userId, isBanned, isSilenced]
   );
 
   const handleExit = async () => {
