@@ -126,6 +126,13 @@ Deno.serve(async (req) => {
         result = { success: true, message: `${target_username} has been unsilenced` };
         break;
       }
+      case "get_email": {
+        if (!targetUserId) throw new Error("target_username required");
+        const { data: authUser, error: authErr } = await supabaseAdmin.auth.admin.getUserById(targetUserId);
+        if (authErr || !authUser?.user) throw new Error("Could not fetch user email");
+        result = { success: true, email: authUser.user.email || "No email found" };
+        break;
+      }
       default:
         return respond(false, { error: "Invalid action" });
     }
