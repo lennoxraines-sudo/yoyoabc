@@ -113,7 +113,7 @@ const Chat = () => {
         .select("*")
         .eq("channel", chatView.name)
         .order("created_at", { ascending: true })
-        .limit(100);
+        .limit(500);
       if (data) setMessages(data);
     };
     fetchMessages();
