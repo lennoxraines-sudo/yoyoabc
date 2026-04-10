@@ -343,6 +343,7 @@ const Chat = () => {
         username={username}
         onUserClick={handleSelectDM}
         isAdmin={isAdmin}
+        moderate={moderate}
       />
     </div>
   );
