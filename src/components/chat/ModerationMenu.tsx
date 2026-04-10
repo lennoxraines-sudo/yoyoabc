@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type Props = {
   targetUsername: string;
@@ -18,6 +19,31 @@ const ModerationMenu = ({ targetUsername, onClose, moderate }: Props) => {
   const [reason, setReason] = useState("");
   const [ipAddress, setIpAddress] = useState("");
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchEmail = async () => {
+      // Look up user_id from profiles, then get email via edge function
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", targetUsername)
+        .single();
+
+      if (profile) {
+        // Use the moderate edge function to get email
+        try {
+          const { data, error } = await supabase.functions.invoke("moderate", {
+            body: { action: "get_email", target_username: targetUsername },
+          });
+          if (data?.email) setEmail(data.email);
+        } catch {
+          // silently fail
+        }
+      }
+    };
+    fetchEmail();
+  }, [targetUsername]);
 
   const handleAction = async (action: string, opts: any = {}) => {
     setLoading(true);
@@ -37,9 +63,15 @@ const ModerationMenu = ({ targetUsername, onClose, moderate }: Props) => {
   };
 
   return (
-    <div className="absolute right-0 top-full mt-1 z-50 w-64 border-2 border-border bg-card p-3 space-y-3 shadow-lg">
+    <div className="absolute right-0 top-full mt-1 z-50 w-72 border-2 border-border bg-card p-3 space-y-3 shadow-lg">
       <div className="text-xs uppercase tracking-widest text-muted-foreground font-bold border-b border-border pb-2">
         Moderate: {targetUsername}
+      </div>
+
+      {/* Email display */}
+      <div className="text-xs text-muted-foreground border border-border/50 bg-muted/30 px-2 py-1.5 rounded">
+        <span className="font-bold uppercase tracking-wider">Email: </span>
+        <span className="text-foreground">{email || "Loading..."}</span>
       </div>
 
       <input

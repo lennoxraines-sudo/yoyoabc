@@ -27,6 +27,11 @@ export type OnlineUser = {
   channel: string;
 };
 
+export type AllUser = {
+  username: string;
+  id: string;
+};
+
 export type ChatView = 
   | { type: "channel"; name: string }
   | { type: "dm"; username: string };
