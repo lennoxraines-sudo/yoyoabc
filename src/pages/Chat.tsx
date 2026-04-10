@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Message, DirectMessage, Channel, OnlineUser, ChatView } from "@/components/chat/types";
+import { Message, DirectMessage, Channel, OnlineUser, AllUser, ChatView } from "@/components/chat/types";
 import { useModeration } from "@/hooks/useModeration";
 import ChannelSidebar from "@/components/chat/ChannelSidebar";
 import OnlineUsersSidebar from "@/components/chat/OnlineUsersSidebar";
@@ -18,6 +18,7 @@ const Chat = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [dmUsers, setDmUsers] = useState<string[]>([]);
+  const [allUsers, setAllUsers] = useState<AllUser[]>([]);
   const navigate = useNavigate();
   const { isAdmin, isBanned, isSilenced, silencedUntil, moderate } = useModeration(userId);
 
@@ -57,6 +58,13 @@ const Chat = () => {
       .order("sort_order")
       .then(({ data }) => {
         if (data) setChannels(data);
+      });
+
+    supabase
+      .from("profiles")
+      .select("id, username")
+      .then(({ data }) => {
+        if (data) setAllUsers(data.map((p) => ({ id: p.id, username: p.username })));
       });
   }, [username]);
 
@@ -331,8 +339,10 @@ const Chat = () => {
 
       <OnlineUsersSidebar
         onlineUsers={onlineUsers}
+        allUsers={allUsers}
         username={username}
         onUserClick={handleSelectDM}
+        isAdmin={isAdmin}
       />
     </div>
   );
