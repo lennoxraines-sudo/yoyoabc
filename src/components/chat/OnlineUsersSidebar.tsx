@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { OnlineUser, AllUser } from "./types";
-import { MessageSquare, Phone, Flag } from "lucide-react";
+import { MessageSquare, Phone, Flag, Shield } from "lucide-react";
 import { toast } from "sonner";
+import ModerationMenu from "./ModerationMenu";
 
 type Props = {
   onlineUsers: OnlineUser[];
@@ -9,10 +10,11 @@ type Props = {
   username: string;
   onUserClick: (username: string) => void;
   isAdmin?: boolean;
-  onModerate?: (username: string) => void;
+  moderate?: (action: string, opts: any) => Promise<any>;
 };
 
-const OnlineUsersSidebar = ({ onlineUsers, allUsers, username, onUserClick, isAdmin, onModerate }: Props) => {
+const OnlineUsersSidebar = ({ onlineUsers, allUsers, username, onUserClick, isAdmin, moderate }: Props) => {
+  const [moderatingUser, setModeratingUser] = useState<string | null>(null);
   const onlineUsernames = new Set(onlineUsers.map((u) => u.username));
 
   const sortedUsers = [...allUsers].sort((a, b) => {
@@ -41,24 +43,18 @@ const OnlineUsersSidebar = ({ onlineUsers, allUsers, username, onUserClick, isAd
           return (
             <div
               key={user.username}
-              className={`group flex items-center gap-2 w-full text-left p-2 rounded transition-colors ${
-                !isSelf ? "hover:bg-muted/50" : ""
-              }`}
+              className="relative group flex items-center gap-2 w-full text-left p-2 rounded transition-colors hover:bg-muted/50"
             >
-              {/* Status indicator */}
               <div
                 className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                   isOnline ? "bg-online" : "bg-destructive"
                 }`}
               />
 
-              {/* User info */}
               <div className="min-w-0 flex-1">
                 <div
                   className={`text-sm font-bold truncate ${
-                    isSelf
-                      ? "text-primary"
-                      : "text-foreground"
+                    isSelf ? "text-primary" : "text-foreground"
                   }`}
                 >
                   {user.username}
@@ -74,7 +70,6 @@ const OnlineUsersSidebar = ({ onlineUsers, allUsers, username, onUserClick, isAd
                 )}
               </div>
 
-              {/* Action buttons - only for other users */}
               {!isSelf && (
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
@@ -98,7 +93,24 @@ const OnlineUsersSidebar = ({ onlineUsers, allUsers, username, onUserClick, isAd
                   >
                     <Flag className="w-3.5 h-3.5" />
                   </button>
+                  {isAdmin && moderate && (
+                    <button
+                      onClick={() => setModeratingUser(moderatingUser === user.username ? null : user.username)}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-yellow-400 transition-colors"
+                      title="Moderate"
+                    >
+                      <Shield className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
+              )}
+
+              {moderatingUser === user.username && isAdmin && moderate && (
+                <ModerationMenu
+                  targetUsername={user.username}
+                  onClose={() => setModeratingUser(null)}
+                  moderate={moderate}
+                />
               )}
             </div>
           );
