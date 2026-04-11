@@ -4,6 +4,7 @@ export type Message = {
   content: string;
   channel: string;
   created_at: string;
+  server_id?: string | null;
 };
 
 export type DirectMessage = {
@@ -20,6 +21,7 @@ export type Channel = {
   description: string;
   icon: string;
   sort_order: number;
+  server_id?: string | null;
 };
 
 export type OnlineUser = {
@@ -32,6 +34,23 @@ export type AllUser = {
   id: string;
 };
 
-export type ChatView = 
+export type Server = {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  owner_id: string;
+  created_at: string;
+};
+
+export type ServerMember = {
+  id: string;
+  server_id: string;
+  user_id: string;
+  role: "owner" | "moderator" | "member";
+  joined_at: string;
+};
+
+export type ChatView =
   | { type: "channel"; name: string }
   | { type: "dm"; username: string };
