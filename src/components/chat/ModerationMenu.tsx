@@ -99,7 +99,19 @@ const ModerationMenu = ({ targetUsername, onClose, moderate }: Props) => {
   };
 
   return (
-    <div className="absolute right-0 top-full mt-1 z-50 w-72 border-2 border-border bg-card p-3 space-y-3 shadow-lg">
+    <div
+      ref={panelRef}
+      className={`${position ? "fixed" : "absolute right-0 top-full mt-1"} z-50 w-72 border-2 border-border bg-card p-3 space-y-3 shadow-lg`}
+      style={position ? { left: position.x, top: position.y } : undefined}
+    >
+      {/* Drag handle */}
+      <div
+        onMouseDown={onMouseDown}
+        className="flex items-center justify-center gap-1 cursor-grab active:cursor-grabbing py-1 -mt-1 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <GripHorizontal className="w-4 h-4" />
+        <span className="text-[10px] uppercase tracking-widest">Drag to move</span>
+      </div>
       <div className="text-xs uppercase tracking-widest text-muted-foreground font-bold border-b border-border pb-2">
         Moderate: {targetUsername}
       </div>
