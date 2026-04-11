@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { GripHorizontal } from "lucide-react";
 
 type Props = {
   targetUsername: string;
@@ -20,6 +21,41 @@ const ModerationMenu = ({ targetUsername, onClose, moderate }: Props) => {
   const [ipAddress, setIpAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const rect = panelRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    // Initialize position on first drag if not set
+    if (!position) {
+      setPosition({ x: rect.left, y: rect.top });
+      dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    } else {
+      dragOffset.current = { x: e.clientX - position.x, y: e.clientY - position.y };
+    }
+    setDragging(true);
+  }, [position]);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent) => {
+      setPosition({
+        x: e.clientX - dragOffset.current.x,
+        y: e.clientY - dragOffset.current.y,
+      });
+    };
+    const onUp = () => setDragging(false);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [dragging]);
 
   useEffect(() => {
     const fetchEmail = async () => {
@@ -63,7 +99,19 @@ const ModerationMenu = ({ targetUsername, onClose, moderate }: Props) => {
   };
 
   return (
-    <div className="absolute right-0 top-full mt-1 z-50 w-72 border-2 border-border bg-card p-3 space-y-3 shadow-lg">
+    <div
+      ref={panelRef}
+      className={`${position ? "fixed" : "absolute right-0 top-full mt-1"} z-50 w-72 border-2 border-border bg-card p-3 space-y-3 shadow-lg`}
+      style={position ? { left: position.x, top: position.y } : undefined}
+    >
+      {/* Drag handle */}
+      <div
+        onMouseDown={onMouseDown}
+        className="flex items-center justify-center gap-1 cursor-grab active:cursor-grabbing py-1 -mt-1 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <GripHorizontal className="w-4 h-4" />
+        <span className="text-[10px] uppercase tracking-widest">Drag to move</span>
+      </div>
       <div className="text-xs uppercase tracking-widest text-muted-foreground font-bold border-b border-border pb-2">
         Moderate: {targetUsername}
       </div>
